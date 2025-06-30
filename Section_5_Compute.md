@@ -1,6 +1,6 @@
 # EC2
 
-EC2 is a virtual machine
+An Amazon EC2 (Elastic Compute Cloud) instance is a virtual server in the cloud that provides resizable compute capacity for running applications.
 
 ## Use of EC2 in Data 
 
