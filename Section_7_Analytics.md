@@ -49,7 +49,108 @@ Glue jobs can be run using a CRON schedule or a job bookmark. A job bookmark can
 
 Cloudwatch events can also be configured to notify when the job succeeds or fails using SNS. Things like invoking an EC2 run, sending an event to kinesis or activating a step function can also be done using cloudwatch events when running glue jobs. 
 
-## AWS Glue costs 
+### AWS Glue costs 
 
 Billed by the second for glue crawler and ETL jobs. The first million objects which are stored and accessed are free for the glue data catalog. Development endpoints for developing ETL code are charged by the minute.
 
+### AWS Glue Studio
+
+Visual interface for ETL workflows. Has a visual job editor where users can create DAGs for complex workflows, transform and join data and partition. Also comes with a visual dashboard where status and run times for jobs can be seen. 
+
+### AWS Glue data quality
+
+DQ rules can be created manually or through auto recommendations. They can be integrated into glue jobs and use DQDL, Data quality definition language. Results can be used to fail the job, or just be reported to cloudwatch. 
+
+### AWS Glue Databrew 
+
+Databrew is a visual data preparation tool. There is a UI which users can use to pre-process their large datasets and also have the data come into databrew from S3. Data warehouses or databases can also be used as sources. 
+
+There are over 250 ready made transformations for glue databrew. Users can create recipes which can be saved as jobs within a project. We cam also define DQ rules, and create datasets with SQL for redshift/snowflake. 
+
+There is also integration with KMS for data security, SSL for data in transit and IAM/Cloudwatch/Cloudtrail to restrict and observe. 
+
+#### Handling PII in Databrew 
+
+There are several ways of handling PII data in glue databrew: 
+
+1. Substituting the PII data with random values 
+2. Shuffling rows 
+3. Deterministic and probabilistic encryption 
+4. Decryption 
+5. Nulling out PII or deleting 
+6. Masking PII 
+7. Hashing 
+
+### AWS Glue workflows
+
+Glue workflow is an orchestration tool which helps to design multi job, multi crawler ETL processes and helps then to run together. Glue workflows can be created from existing blueprints from an API or from the console. 
+
+Users can trigger glue workflows using 'workflow triggers':
+- To start jobs or crawlers, workflows can be triggered and then fired to completion 
+- They can be scheduled using CRON 
+- They can be set on demand, so only used when needed 
+- Eventbridge evemts can be used to start on a single or batch of events e.g. arrival of a new object into s3, users can set batch conditions such as size or window for events. 
+
+# AWS Lake Formation
+
+Lake formation was built on top of AWS Glue to make it easy to setup data lakes in days. Lake formation can help load data and monitor data flows, partitions, encryption and manage keys and also define transformations using glue/monitor them. Access control, auditing is also included. There is no cost for lake formation but the underlying services do have charges.
+
+Process: S3/DB > Lake formation <-> S3 data lake > Athena/Redshift/EMR 
+
+## Building a data lake using lake formation 
+
+1. Create an IAM user for a data analyst/data person 
+2. Create Glue connection to the data source of choice 
+3. Create S3 bucket as data lake 
+4. Register S3 data lake path in lake formation and grant permissions 
+5. Create database in lake formation for a data catalog
+6. Use blueprint to setup a glue workflow and run the workflow 
+7. Grant SELECT permissions to whoever needs to read the data e.g. Athena, redshift spectrum
+
+For cross-account lake formation permissions, the recipient should be setup as a data lake admin. To access lake formation, users can use AWS resource access manager. Lake formation does not support manifests in athena or redshift queries. IAM permissions are needed for KMS encryption and to create blueprints/workflows for glue. 
+
+## Governed Tables and Security 
+
+Lake formation has additional features which incur addtional costs
+
+- Lake formation supports ACID transactions across multiple tables, also works with kinesis data streaming and can be queried from Athena. 
+- Auto compaction can be used to optimise storage 
+- Row and cell level security can be used for granular access control
+
+## Data Filters in Lake Formation 
+
+- Lake formation has column, row, cell level security which can be aplied when granting SELECT perms on tables 
+- Users can create filters via the console using the CreateDataCellsFilter API 
+- All columns + row filter = row level security 
+- All rows + column filter = column level security 
+- column filter + row filter = cell level security 
+
+# Amazon Athena
+
+Athena is a serverless service which can query S3 data interactively. It has presto under the hood and can support many data formats such as CSV/TSV/JSON/ORC/PARQUET/AVRO and also supports snappy, zlib, LZO, GZIP compression. Athena can also query unstructured, structured and semi structured data.
+
+Example usage: ad hoc queries of web logs, analysing cloudtrail logs, integration with quicksight. 
+
+## Athena + Glue - costs and security 
+
+Athena can be used alongside a glue crawler for a unified metadata approach. 
+
+### Athena workgroups 
+
+- Users can organise users/teams/apps/workloads into workgroups 
+- Workgroups helps to control query access and track costs by workgroup
+- Integrates with IAM. Cloudwatch and SNS 
+- Each workgroup can have its own query history, data limits, IAM policies and encryption settings
+
+### Athena Cost Model 
+
+- PAYG: $5 for each TB of data scanned, failed queries do not count in the data scanning, there is no charge for DDL 
+- Users can save lots of money by using ORC/PARQUET columnar formats, users can save 30-90% and get better performance. 
+- However, glue and athena will continue to have their own charges. 
+
+### Athena Security
+
+- Access control is governed by IAM, ACLs and S3 bucket policies. 
+- Encryption occurs at rest in the S3 directory - either server side or client side.
+- Cross account access in S3 bucket policies is possible 
+- TLS encrypts data in transit between athena and s3.
