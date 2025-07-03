@@ -133,7 +133,7 @@ Example usage: ad hoc queries of web logs, analysing cloudtrail logs, integratio
 
 ## Athena + Glue - costs and security 
 
-Athena can be used alongside a glue crawler for a unified metadata approach. 
+Athena can be used alongside a glue crawler for a unified metadata approach. Fine grained access from athena to glue data catalog can be imposed by IAM based database and table level security. At best, the user should have a policy which grants access to the database and the glue data catalog in each region. The policies in place may restrict access to some CRUD/DDL commands but would need to add/delete what operations are needed. 
 
 ### Athena workgroups 
 
@@ -154,3 +154,128 @@ Athena can be used alongside a glue crawler for a unified metadata approach.
 - Encryption occurs at rest in the S3 directory - either server side or client side.
 - Cross account access in S3 bucket policies is possible 
 - TLS encrypts data in transit between athena and s3.
+
+Note: Athena should not be used for ETL rather glue should be used and also not for data visualisation reports - quicksight is the better option. 
+
+### Optimising Athena Performance 
+
+1. Use columnar file formats such as Parquet / ORC 
+2. A smaller number of large files performs better than a large number of small files 
+3. Using partitions can optimise performance by only dividing files into smaller more manageable chunks when reading
+
+### Athena ACID Transactions 
+
+1. ACID transactions in Athena are powered by Apache Iceberg, ```table_type = 'ICEBERG``` in the ```CREATE TABLE``` command. 
+2. Users can safely make row level modifications 
+3. Compatible with EMR, spark and anything which supports iceberg table format 
+4. ACID transactions remove the needs for custom reord locking and can enable time travel - any data which has been deleted can be retrieved by a SELECT statement. 
+5. Governed tables in lakeformation is another way of getting ACID features in Athena. 
+6. Performance is preserved by periodic compaction.
+
+Iceberg is a table format for data lakes which can scale to petabyte level. It is ACID compliant, involves schema and partition evolution and incorporates time travel. There is efficient metadata management and works well with spark, flink, trino, presto and hive. 
+
+### How does iceberg connect with AWS Glue/S3?
+
+Glue can take the place of hive as icebergs metadata storage. The iceberg API communicates with the glue catalog for metadata and can store/retrieve files from s3 usually in parquet. Spark/flink then sits on top of the iceberg API and can be used in athena to maintain ACID compliance. 
+
+Users can migrate glue data catalog to iceberg by making sure they are compatible with the iceberg API. Once this is done, athena can then use the catalog for ACID transactions. Reasons to migrate catalogs to iceberg: 
+    - Compliance, old versions of tables can expire
+    - Iceberg enables historical reporting with time travel queries 
+
+Types of migration: 
+- In place migration: Leave data files where they are, users would need to create iceberg metadata, this type of migration does not allow for schema or partition changes. 
+- Shadow migration: copies the data over from glue to iceberg, allows for additional validation and has easier migration and recovery than in place migration. 
+
+### CTAS 
+
+CREATE TABLE AS SELECT 
+
+Can be used/seen in the context of athena, creates a new table from the query results, can be used to create a new table as a subset of another. Can also be used to convert data into a new format - can use s3 as an external location within the query. 
+
+### Athena Federated Queries 
+
+Athena can query data from sources other than S3. Lambda can run connections between other services such as cloudwatch, dynamodb, rds, opensearch and Athena. 
+
+Views created from federated data sources/services can be stored in glue. These can be secured using secrets manager using a vpc endpoint. Cross account federated queries are possible with passthrough queries using the native language of the data source. 
+
+# Apache Spark 
+
+Apache spark is an open source distributed processing framework for big data. It supports in memory caching and has optimised query execution. Supports Java, Scala, Py and R. Can be used across batch processing, real time analytics, ML, graph processing. Spark streaming can be carried out on kinesis, kafka and EMR. Spark is not meant to be used for OLTP. 
+
+## How does spark work?
+
+Spark apps are run as independent processes on a cluster. The spark conext/driver program coordinates them through a cluster manager. The executors run computations/tasks to store data and spark context sends app code and tasks to executors.
+
+Spark has several components: 
+1. Spark streaming which is real time streaming analytics: Kafka, HFDS
+2. SparkSQL: 100x faster than mapreduce - supports parquet, orc, json, hdfs, jdbc/odbc 
+3. MLLib: library for ML workloads 
+4. GraphX: graph processing for ETL, analysis, but is not widely used. 
+
+Spark core: has fault recovery, in memory management, scheduling, distribute and monitor jobs with interactive storage. 
+
+Spark structured streaming: data stream > unbounded table - new data into the stream  = new rows appended to input table 
+
+## Spark integration with kinesis + redshift 
+
+1. Integration with kinesis = kinesis producers > kinesis data streams > spark dataset implemented from KCL (kinesis client library)
+2. Integration with redshift = spark-redshift package allows spark datasets to integrate with redshift - can be treated like any other Spark SQL data source. 
+
+## Spark integration with Athena 
+
+Users can run a jupyter notebook with spark within an Athena console - the notebook is auto encrypted or users can use KMS. The integration is serverless and can be used an alternate analytics engine. Uses firecraker for spinning up spark resources and can be used programmatically using aws-cli. Can adjust DPUs for coordinator and executor sizes with pricing based on compute usage and DPU per hour. 
+
+# Amazon EMR 
+
+EMR or Elastic Map Reduce is a managed hadoop framework on EC2 instances. It includes spark, hbase, presto, flink, hive and more. EMR can use notebooks for processing and has several integration points with AWS. 
+
+An EMR Cluster has a master node which manages the cluster and has a core node which hosts the HDFS data, runs tasks and has a task node which also runs tasks but does not host data. 
+
+## EMR Usage 
+
+1. Transient: transient clusters terminate once all steps are complete - loading data, processing, storing and then shut down which saves money 
+2. Long-running: long running clusters must be manually terminated which is basically a DWH with periodic processing on large datasets. Users can spin up task nodes, using spot instances for temp capacity or can use reserved instanced on long running clusters to save costs. Auto termination is off. 
+
+Frameworks and applications can be specified at cluster launch which can connect directly to master node to run the jobs directly. Steps for data processing can be invoked via the AWS console. 
+
+## EMR/AWS services integration 
+
+EMR can integrate well with other AWS services:
+
+1. EC2 instances are used for the nodes in the EMR cluster 
+2. VPC is used to configure the network in which the instances will be launched. 
+3. S3 is used to store input and output data 
+4. Cloudwatch is used to monitor cluster performance 
+5. IAM is used to configure permissions 
+6. Cloudtrail is used to audit requests made by users to the clusters/service
+7. Data pipeline is used to schedule and start clusters 
+
+## EMR Storage
+
+- HDFS is used for storage: hadoop distributed file system
+- Multiple copies of the data are made across cluster instances for redundancy
+- Files are stored as 128mb blocks and ephemeral (cluster is terminated if data is lost)
+- EBS can also be used for HDFS (M4/C4), EBS is also deleted when the cluster is terminated but the EBS volumes can only be attached when launching a cluster. If EBS is manually detached from EMR cluster then it is replaced. 
+- Another method of storage is EMRFS: Access to S3 allows for persistent storage after cluster termination. Dynamodb is used to track consistency. 
+
+## Other EMR info 
+
+EMR charges by the hour + plus EC2 charges. Can provision new nodes if core node fails, can add and remove task nodes on the fly and can resize a running clusters core nodes for processing and HDFS capacity. Core nodes can also be added or removed, although removing core nodes can risk data loss from EMR cluster. 
+
+### EMR managed scaling 
+
+EMR has auto scaling which supports instance groups only. Managed scaling was introduced in 2020 which can support instance fleets as well as instance groups and can be used alongside a savings plan. 
+
+The scale up strategy adds core nodes, then task nodes. The scale down strategy removes task nodes then core nodes. Spot nodes are always removed before on demand instances. 
+
+## EMR Serverless (EMR on EKS)
+
+EMR can run serverless. Users can choose an EMR release and runtime. The serverless version of EMR allows users to submit queries and scripts via job run requests. EMR can manage the underlying capacity while the user can specify the default worker size and capacity. 
+
+EMR allows submission of jobs on EKS WITHOUT the need to provisiom clusters. 
+
+Serverless app lifecycle: creating > created > starting > started > stopping > stopped > terminated -- all these steps need to call the API and incur costs. 
+
+Note: When setting up an EMR cluster for spark - make sure to add 10% more capacity than requested by the job. 
+
+EMR serverless uses similar security protocols to EMR. S3 encryption at rest, TLS in transit between EMR nodes. 
