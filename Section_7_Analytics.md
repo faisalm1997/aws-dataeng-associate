@@ -1,424 +1,421 @@
-# AWS Glue 
+# AWS Analytics Services
 
-Building table definitions and ETL. AWS Glue is a serverless fully managed service which is trigger driven, on a schedule and on demand - used in ETL pipelines. It also has serverless discovery and definition of tables and schemas, can be used alongside s3 data lakes/rds/redshift and other SQL databases. 
+---
 
-Process: S3 > Glue > Redshift/athena/EMR > quicksight 
+## AWS Glue
 
-## Glue crawler/data catalog 
+AWS Glue is a **serverless, fully managed ETL (Extract, Transform, Load) service**. It is trigger-driven (on a schedule or on demand) and is used to build table definitions, perform ETL, and discover/define tables and schemas. Glue integrates with S3 data lakes, RDS, Redshift, and other SQL databases.
 
-AWS Glue crawler scans data in S3 and then creates a schema. This crawler can be run periodically, and populate the glue data catalog which stores the table definition and the source data stays in S3. Once the data is cataloged, users can treat unstructured data like its structured and be used in other AWS services. 
+**Typical Data Flow:**  
+`S3 → Glue → Redshift/Athena/EMR → Quicksight`
 
-## Glue partitions 
+### Glue Crawler & Data Catalog
 
-The glue crawler can extract partitions based on how S3 has organised the data. This will affect how glue will work and where the data is read from. If the data is queried by date or by any other field, the data will need to be organised in such partitions if not already or glue performance will degrade. 
+- **Glue Crawler:** Scans data in S3 and infers schema, creating or updating tables in the Glue Data Catalog.
+- **Data Catalog:** Central metadata repository for all your data assets, used by Athena, Redshift Spectrum, EMR, and more.
+- Crawlers can be scheduled to keep the catalog up to date.
 
-## AWS Glue + Hive 
+### Glue Partitions
 
-Hive lets you run SQL like queries from EMR. The glue data catalog can serve as a hive metastore and can also import a hive metastore into glue. 
+- Glue crawlers can extract partitions based on S3 data organization (e.g., year/month/day).
+- Proper partitioning (especially on large datasets) improves query performance and reduces cost.
 
-## Glue ETL 
+### AWS Glue + Hive
 
-AWS glue can auto generate code by dragging and dropping what transformations to apply to the data. The code will be written in python or scala, and has server side or SSL encryption. Glue ETL is event driben and users can provision extra DPUs to increase performnace of the underlying spark jobs. 
+- Glue Data Catalog can serve as a Hive metastore for Spark, Presto, and Hive jobs.
+- You can import an existing Hive metastore into Glue for seamless migration.
 
-Job metrics can be viewed to understand the max capacity and whether further DPUs are needed, this can be found in the glue console but errors are reported in cloudwatch and be configured using SNS. 
+### Glue ETL
 
-The targets for Glue ETL can be S3, RDS/Redshift via JDBC or glue data catalog. Glue is fully managed and PAYG with jobs being run on a serverless spark platform. Glue triggers run jobs based on events and scheduler will schedule jobs. 
+- **Auto-generates code** for transformations in Python or Scala.
+- Supports server-side or SSL encryption for data in transit and at rest.
+- Event-driven: can provision extra DPUs (Data Processing Units) for performance.
+- Job metrics and errors are available in the Glue Console and CloudWatch.
 
-### Dynamic Frame 
+#### Dynamic Frame
 
-A dynamic frame is a collection of dynamic records which are self describing and have a schema. A spark data frame is similar but the dynamic data frame can work with scala and py APIs. 
+- A collection of dynamic, self-describing records with a schema.
+- Similar to Spark DataFrame but supports schema flexibility and both Scala and Python APIs.
 
-### Transformations 
+#### Transformations
 
-1. Bundled  - Dropfields, dropnullfields, filter, join, map 
-2. ML transformations - FindmatchesML can identify dupes or matching records in the dataset, even when records dont have a common unique identifier and have no fields matching 
-3. Format conversions - CSV, JSON, Parquet, Avro, XML 
-4. Apache spark transformations - K-means 
+1. **Bundled:** Dropfields, dropnullfields, filter, join, map, etc.
+2. **ML Transformations:** FindMatchesML for deduplication and entity resolution.
+3. **Format Conversions:** CSV, JSON, Parquet, Avro, XML.
+4. **Apache Spark Transformations:** e.g., K-means clustering, joins, aggregations.
 
 #### Resolve Choice
 
-Deals with ambiguities in a dynamic frame and returns a new one e.g. two fields with the same name can be rectified. Users can create new columns, cast values to a specific type, create a structure that contains each data type and project each type to a given type 
+- Handles ambiguities in dynamic frames (e.g., duplicate field names, type casting, nested structures).
 
-### Modifying the data catalog 
+### Modifying the Data Catalog
 
-ETL scripts can update your schema and partitions if necessary. Users can add new partitions, update the table schema, create new tables, and re run the crawler. There are some restrictions, JSON/AVRO/PARQUET files can only be modified inside S3 with parquet requiring special code. Nested schemas as not supported for modifying. 
+- ETL scripts can update schema and partitions in the Data Catalog.
+- JSON/AVRO/PARQUET files can only be modified inside S3.
+- Nested schemas are not supported for modification in Glue.
 
-### Running glue jobs 
+### Running Glue Jobs
 
-Glue jobs can be run using a CRON schedule or a job bookmark. A job bookmark can persist the state from the old job run ie, the job will know where you left off and whats been processed, allows you to only process new data. Works with S3 and relational databases via JDBC. 
+- Jobs can be scheduled (CRON) or triggered by events.
+- **Job bookmarks** persist state to avoid reprocessing data.
+- CloudWatch Events and SNS can notify on job success/failure.
+- Glue jobs can trigger EC2, Kinesis, or Step Functions for further processing.
 
-Cloudwatch events can also be configured to notify when the job succeeds or fails using SNS. Things like invoking an EC2 run, sending an event to kinesis or activating a step function can also be done using cloudwatch events when running glue jobs. 
+### AWS Glue Costs
 
-### AWS Glue costs 
-
-Billed by the second for glue crawler and ETL jobs. The first million objects which are stored and accessed are free for the glue data catalog. Development endpoints for developing ETL code are charged by the minute.
+- Billed by the second for crawlers and ETL jobs.
+- First million objects in the data catalog are free.
 
 ### AWS Glue Studio
 
-Visual interface for ETL workflows. Has a visual job editor where users can create DAGs for complex workflows, transform and join data and partition. Also comes with a visual dashboard where status and run times for jobs can be seen. 
+- Visual interface for building, running, and monitoring ETL workflows.
+- Create DAGs (Directed Acyclic Graphs), transform/join/partition data, and monitor job execution visually.
 
-### AWS Glue data quality
+### AWS Glue Data Quality
 
-DQ rules can be created manually or through auto recommendations. They can be integrated into glue jobs and use DQDL, Data quality definition language. Results can be used to fail the job, or just be reported to cloudwatch. 
+- Create Data Quality (DQ) rules manually or via recommendations.
+- Integrated into Glue jobs using DQDL (Data Quality Definition Language).
+- Results can fail jobs or be reported to CloudWatch for monitoring and alerting.
 
-### AWS Glue Databrew 
+### AWS Glue Databrew
 
-Databrew is a visual data preparation tool. There is a UI which users can use to pre-process their large datasets and also have the data come into databrew from S3. Data warehouses or databases can also be used as sources. 
+- Visual data preparation tool for data analysts and engineers.
+- 250+ ready-made transformations (cleaning, normalization, enrichment).
+- Create recipes, define DQ rules, and integrate with KMS, IAM, CloudWatch, CloudTrail.
 
-There are over 250 ready made transformations for glue databrew. Users can create recipes which can be saved as jobs within a project. We cam also define DQ rules, and create datasets with SQL for redshift/snowflake. 
+#### Handling PII in Databrew
 
-There is also integration with KMS for data security, SSL for data in transit and IAM/Cloudwatch/Cloudtrail to restrict and observe. 
+- Substitute, shuffle, encrypt, decrypt, null, mask, or hash PII data for compliance and privacy.
 
-#### Handling PII in Databrew 
+### AWS Glue Workflows
 
-There are several ways of handling PII data in glue databrew: 
+- Orchestrate multi-job, multi-crawler ETL processes.
+- Triggered by events, CRON, or on demand.
+- EventBridge can trigger workflows on S3 events or other AWS service events.
 
-1. Substituting the PII data with random values 
-2. Shuffling rows 
-3. Deterministic and probabilistic encryption 
-4. Decryption 
-5. Nulling out PII or deleting 
-6. Masking PII 
-7. Hashing 
+---
 
-### AWS Glue workflows
+## AWS Lake Formation
 
-Glue workflow is an orchestration tool which helps to design multi job, multi crawler ETL processes and helps then to run together. Glue workflows can be created from existing blueprints from an API or from the console. 
+Lake Formation builds on Glue to **simplify data lake setup, loading, monitoring, partitioning, encryption, and access control**.
 
-Users can trigger glue workflows using 'workflow triggers':
-- To start jobs or crawlers, workflows can be triggered and then fired to completion 
-- They can be scheduled using CRON 
-- They can be set on demand, so only used when needed 
-- Eventbridge evemts can be used to start on a single or batch of events e.g. arrival of a new object into s3, users can set batch conditions such as size or window for events. 
+**Typical Data Lake Flow:**  
+`S3/DB → Lake Formation ↔ S3 Data Lake → Athena/Redshift/EMR`
 
-# AWS Lake Formation
+### Building a Data Lake
 
-Lake formation was built on top of AWS Glue to make it easy to setup data lakes in days. Lake formation can help load data and monitor data flows, partitions, encryption and manage keys and also define transformations using glue/monitor them. Access control, auditing is also included. There is no cost for lake formation but the underlying services do have charges.
+1. **Create IAM user** with appropriate permissions.
+2. **Create Glue connection** to your data source (e.g., RDS, on-prem DB).
+3. **Create S3 bucket** for your data lake.
+4. **Register S3 path** in Lake Formation and grant permissions.
+5. **Create database** in Lake Formation for the data catalog.
+6. **Use blueprint** to set up Glue workflow for ingestion and transformation.
+7. **Grant SELECT permissions** to consumers (e.g., Athena, Redshift Spectrum).
 
-Process: S3/DB > Lake formation <-> S3 data lake > Athena/Redshift/EMR 
+### Governed Tables & Security
 
-## Building a data lake using lake formation 
+- Supports ACID transactions, Kinesis streaming, Athena queries.
+- Auto compaction for storage optimization.
+- Row/cell-level security for granular access control.
 
-1. Create an IAM user for a data analyst/data person 
-2. Create Glue connection to the data source of choice 
-3. Create S3 bucket as data lake 
-4. Register S3 data lake path in lake formation and grant permissions 
-5. Create database in lake formation for a data catalog
-6. Use blueprint to setup a glue workflow and run the workflow 
-7. Grant SELECT permissions to whoever needs to read the data e.g. Athena, redshift spectrum
+### Data Filters
 
-For cross-account lake formation permissions, the recipient should be setup as a data lake admin. To access lake formation, users can use AWS resource access manager. Lake formation does not support manifests in athena or redshift queries. IAM permissions are needed for KMS encryption and to create blueprints/workflows for glue. 
+- Column, row, and cell-level security via console or API for fine-grained access.
 
-## Governed Tables and Security 
+---
 
-Lake formation has additional features which incur addtional costs
+## Amazon Athena
 
-- Lake formation supports ACID transactions across multiple tables, also works with kinesis data streaming and can be queried from Athena. 
-- Auto compaction can be used to optimise storage 
-- Row and cell level security can be used for granular access control
+Athena is a **serverless, interactive query service** for S3 data (supports CSV, TSV, JSON, ORC, PARQUET, AVRO, and compression).
 
-## Data Filters in Lake Formation 
+**Use Cases:**  
+- Ad hoc queries on S3 data
+- Log analysis
+- Integration with Quicksight for BI
 
-- Lake formation has column, row, cell level security which can be aplied when granting SELECT perms on tables 
-- Users can create filters via the console using the CreateDataCellsFilter API 
-- All columns + row filter = row level security 
-- All rows + column filter = column level security 
-- column filter + row filter = cell level security 
+### Athena + Glue: Costs & Security
 
-# Amazon Athena
+- Fine-grained access via IAM.
+- Policies can restrict CRUD/DDL operations for security and compliance.
 
-Athena is a serverless service which can query S3 data interactively. It has presto under the hood and can support many data formats such as CSV/TSV/JSON/ORC/PARQUET/AVRO and also supports snappy, zlib, LZO, GZIP compression. Athena can also query unstructured, structured and semi structured data.
+### Athena Workgroups
 
-Example usage: ad hoc queries of web logs, analysing cloudtrail logs, integration with quicksight. 
+- Organize users/teams/apps.
+- Control query access, track costs, and manage encryption settings.
 
-## Athena + Glue - costs and security 
+### Athena Cost Model
 
-Athena can be used alongside a glue crawler for a unified metadata approach. Fine grained access from athena to glue data catalog can be imposed by IAM based database and table level security. At best, the user should have a policy which grants access to the database and the glue data catalog in each region. The policies in place may restrict access to some CRUD/DDL commands but would need to add/delete what operations are needed. 
-
-### Athena workgroups 
-
-- Users can organise users/teams/apps/workloads into workgroups 
-- Workgroups helps to control query access and track costs by workgroup
-- Integrates with IAM. Cloudwatch and SNS 
-- Each workgroup can have its own query history, data limits, IAM policies and encryption settings
-
-### Athena Cost Model 
-
-- PAYG: $5 for each TB of data scanned, failed queries do not count in the data scanning, there is no charge for DDL 
-- Users can save lots of money by using ORC/PARQUET columnar formats, users can save 30-90% and get better performance. 
-- However, glue and athena will continue to have their own charges. 
+- Pay-as-you-go: $5 per TB scanned.
+- Save costs by using columnar formats (ORC/PARQUET) and partitioning.
 
 ### Athena Security
 
-- Access control is governed by IAM, ACLs and S3 bucket policies. 
-- Encryption occurs at rest in the S3 directory - either server side or client side.
-- Cross account access in S3 bucket policies is possible 
-- TLS encrypts data in transit between athena and s3.
+- Access control via IAM, ACLs, S3 bucket policies.
+- Encryption at rest (S3) and in transit (TLS).
+- Cross-account access is possible with proper permissions.
 
-Note: Athena should not be used for ETL rather glue should be used and also not for data visualisation reports - quicksight is the better option. 
+### Athena Performance Optimization
 
-### Optimising Athena Performance 
+1. Use columnar formats (Parquet/ORC) for efficient storage and querying.
+2. Fewer, larger files are better than many small files (reduces overhead).
+3. Use partitions for efficient querying and cost savings.
 
-1. Use columnar file formats such as Parquet / ORC 
-2. A smaller number of large files performs better than a large number of small files 
-3. Using partitions can optimise performance by only dividing files into smaller more manageable chunks when reading
+### Athena ACID Transactions
 
-### Athena ACID Transactions 
+- Powered by Apache Iceberg (`table_type = 'ICEBERG'`).
+- Supports row-level modifications, time travel, schema/partition evolution.
+- Compatible with EMR, Spark, Flink, Trino, Presto, Hive.
 
-1. ACID transactions in Athena are powered by Apache Iceberg, ```table_type = 'ICEBERG``` in the ```CREATE TABLE``` command. 
-2. Users can safely make row level modifications 
-3. Compatible with EMR, spark and anything which supports iceberg table format 
-4. ACID transactions remove the needs for custom reord locking and can enable time travel - any data which has been deleted can be retrieved by a SELECT statement. 
-5. Governed tables in lakeformation is another way of getting ACID features in Athena. 
-6. Performance is preserved by periodic compaction.
+#### Iceberg Integration
 
-Iceberg is a table format for data lakes which can scale to petabyte level. It is ACID compliant, involves schema and partition evolution and incorporates time travel. There is efficient metadata management and works well with spark, flink, trino, presto and hive. 
+- Glue can serve as Iceberg's metadata store.
+- Spark/Flink can use Iceberg API for ACID compliance.
 
-### How does iceberg connect with AWS Glue/S3?
+#### Migration Types
 
-Glue can take the place of hive as icebergs metadata storage. The iceberg API communicates with the glue catalog for metadata and can store/retrieve files from s3 usually in parquet. Spark/flink then sits on top of the iceberg API and can be used in athena to maintain ACID compliance. 
+- **In-place:** Create Iceberg metadata for existing data.
+- **Shadow:** Copy data to Iceberg, allowing validation and easier recovery.
 
-Users can migrate glue data catalog to iceberg by making sure they are compatible with the iceberg API. Once this is done, athena can then use the catalog for ACID transactions. Reasons to migrate catalogs to iceberg: 
-    - Compliance, old versions of tables can expire
-    - Iceberg enables historical reporting with time travel queries 
+### CTAS (Create Table As Select)
 
-Types of migration: 
-- In place migration: Leave data files where they are, users would need to create iceberg metadata, this type of migration does not allow for schema or partition changes. 
-- Shadow migration: copies the data over from glue to iceberg, allows for additional validation and has easier migration and recovery than in place migration. 
+- Create new tables from query results.
+- Convert data formats, use S3 as external location.
 
-### CTAS 
+### Athena Federated Queries
 
-CREATE TABLE AS SELECT 
+- Query data from sources other than S3 via Lambda connectors.
+- Store views in Glue; secure with Secrets Manager and VPC endpoints.
+- Supports cross-account federated queries.
 
-Can be used/seen in the context of athena, creates a new table from the query results, can be used to create a new table as a subset of another. Can also be used to convert data into a new format - can use s3 as an external location within the query. 
+---
 
-### Athena Federated Queries 
+## Apache Spark
 
-Athena can query data from sources other than S3. Lambda can run connections between other services such as cloudwatch, dynamodb, rds, opensearch and Athena. 
+Open-source distributed processing for big data (batch, real-time, ML, graph).
 
-Views created from federated data sources/services can be stored in glue. These can be secured using secrets manager using a vpc endpoint. Cross account federated queries are possible with passthrough queries using the native language of the data source. 
+### How Spark Works
 
-# Apache Spark 
+- Apps run as independent processes on a cluster.
+- Spark context/driver coordinates via cluster manager.
+- Executors run computations and store data.
 
-Apache spark is an open source distributed processing framework for big data. It supports in memory caching and has optimised query execution. Supports Java, Scala, Py and R. Can be used across batch processing, real time analytics, ML, graph processing. Spark streaming can be carried out on kinesis, kafka and EMR. Spark is not meant to be used for OLTP. 
+### Spark Components
 
-## How does spark work?
+1. **Spark Streaming:** Real-time analytics (Kafka, HDFS).
+2. **SparkSQL:** Fast SQL queries (supports Parquet, ORC, JSON, JDBC/ODBC).
+3. **MLLib:** Machine learning library.
+4. **GraphX:** Graph processing.
 
-Spark apps are run as independent processes on a cluster. The spark conext/driver program coordinates them through a cluster manager. The executors run computations/tasks to store data and spark context sends app code and tasks to executors.
+### Spark Structured Streaming
 
-Spark has several components: 
-1. Spark streaming which is real time streaming analytics: Kafka, HFDS
-2. SparkSQL: 100x faster than mapreduce - supports parquet, orc, json, hdfs, jdbc/odbc 
-3. MLLib: library for ML workloads 
-4. GraphX: graph processing for ETL, analysis, but is not widely used. 
+- Data stream → unbounded table (new data = new rows).
 
-Spark core: has fault recovery, in memory management, scheduling, distribute and monitor jobs with interactive storage. 
+### Spark Integration
 
-Spark structured streaming: data stream > unbounded table - new data into the stream  = new rows appended to input table 
+- **Kinesis:** Use KCL for streaming data.
+- **Redshift:** Use spark-redshift package.
+- **Athena:** Run Spark notebooks in Athena console (serverless, encrypted).
 
-## Spark integration with kinesis + redshift 
+---
 
-1. Integration with kinesis = kinesis producers > kinesis data streams > spark dataset implemented from KCL (kinesis client library)
-2. Integration with redshift = spark-redshift package allows spark datasets to integrate with redshift - can be treated like any other Spark SQL data source. 
+## Amazon EMR
 
-## Spark integration with Athena 
+Managed Hadoop framework on EC2 (includes Spark, HBase, Presto, Flink, Hive, etc.).
 
-Users can run a jupyter notebook with spark within an Athena console - the notebook is auto encrypted or users can use KMS. The integration is serverless and can be used an alternate analytics engine. Uses firecraker for spinning up spark resources and can be used programmatically using aws-cli. Can adjust DPUs for coordinator and executor sizes with pricing based on compute usage and DPU per hour. 
+### EMR Cluster Architecture
 
-# Amazon EMR 
+- **Master Node:** Manages cluster.
+- **Core Node:** Hosts HDFS data, runs tasks.
+- **Task Node:** Runs tasks, does not host data.
 
-EMR or Elastic Map Reduce is a managed hadoop framework on EC2 instances. It includes spark, hbase, presto, flink, hive and more. EMR can use notebooks for processing and has several integration points with AWS. 
+### EMR Usage
 
-An EMR Cluster has a master node which manages the cluster and has a core node which hosts the HDFS data, runs tasks and has a task node which also runs tasks but does not host data. 
+- **Transient:** Terminates after processing (cost-saving).
+- **Long-running:** Manual termination, suitable for DWH.
 
-## EMR Usage 
+### EMR Integration
 
-1. Transient: transient clusters terminate once all steps are complete - loading data, processing, storing and then shut down which saves money 
-2. Long-running: long running clusters must be manually terminated which is basically a DWH with periodic processing on large datasets. Users can spin up task nodes, using spot instances for temp capacity or can use reserved instanced on long running clusters to save costs. Auto termination is off. 
+- Integrates with EC2, VPC, S3, CloudWatch, IAM, CloudTrail, Data Pipeline.
 
-Frameworks and applications can be specified at cluster launch which can connect directly to master node to run the jobs directly. Steps for data processing can be invoked via the AWS console. 
+### EMR Storage
 
-## EMR/AWS services integration 
+- **HDFS:** Distributed file system, ephemeral.
+- **EBS:** Used for HDFS, deleted on cluster termination.
+- **EMRFS:** Persistent S3 storage, DynamoDB for consistency.
 
-EMR can integrate well with other AWS services:
+### EMR Scaling
 
-1. EC2 instances are used for the nodes in the EMR cluster 
-2. VPC is used to configure the network in which the instances will be launched. 
-3. S3 is used to store input and output data 
-4. Cloudwatch is used to monitor cluster performance 
-5. IAM is used to configure permissions 
-6. Cloudtrail is used to audit requests made by users to the clusters/service
-7. Data pipeline is used to schedule and start clusters 
+- Managed scaling supports instance groups and fleets.
+- Scale up: add core, then task nodes.
+- Scale down: remove task, then core nodes (spot nodes removed first).
 
-## EMR Storage
+### EMR Serverless (EMR on EKS)
 
-- HDFS is used for storage: hadoop distributed file system
-- Multiple copies of the data are made across cluster instances for redundancy
-- Files are stored as 128mb blocks and ephemeral (cluster is terminated if data is lost)
-- EBS can also be used for HDFS (M4/C4), EBS is also deleted when the cluster is terminated but the EBS volumes can only be attached when launching a cluster. If EBS is manually detached from EMR cluster then it is replaced. 
-- Another method of storage is EMRFS: Access to S3 allows for persistent storage after cluster termination. Dynamodb is used to track consistency. 
+- Submit jobs without provisioning clusters.
+- Specify worker size/capacity; pay per use.
+- Security: S3 encryption at rest, TLS in transit.
 
-## Other EMR info 
+---
 
-EMR charges by the hour + plus EC2 charges. Can provision new nodes if core node fails, can add and remove task nodes on the fly and can resize a running clusters core nodes for processing and HDFS capacity. Core nodes can also be added or removed, although removing core nodes can risk data loss from EMR cluster. 
+## Kinesis Data Streams
 
-### EMR managed scaling 
+Fully managed real-time data streaming.
 
-EMR has auto scaling which supports instance groups only. Managed scaling was introduced in 2020 which can support instance fleets as well as instance groups and can be used alongside a savings plan. 
+### Process
 
-The scale up strategy adds core nodes, then task nodes. The scale down strategy removes task nodes then core nodes. Spot nodes are always removed before on demand instances. 
+1. **Producers:** Apps, SDK, Kinesis Agent.
+2. **Records:** Partitioned by key, sent to shards.
+3. **Consumers:** Lambda, Apps, Firehose, Analytics.
 
-## EMR Serverless (EMR on EKS)
+### Retention
 
-EMR can run serverless. Users can choose an EMR release and runtime. The serverless version of EMR allows users to submit queries and scripts via job run requests. EMR can manage the underlying capacity while the user can specify the default worker size and capacity. 
+- 1–365 days; immutable records.
 
-EMR allows submission of jobs on EKS WITHOUT the need to provisiom clusters. 
+### Capacity Modes
 
-Serverless app lifecycle: creating > created > starting > started > stopping > stopped > terminated -- all these steps need to call the API and incur costs. 
+1. **Provisioned:** Manual shard management.
+2. **On Demand:** Auto-scales, pay per usage.
 
-Note: When setting up an EMR cluster for spark - make sure to add 10% more capacity than requested by the job. 
+### Security
 
-EMR serverless uses similar security protocols to EMR. S3 encryption at rest, TLS in transit between EMR nodes. 
+- IAM policies, encryption in flight (HTTPS), at rest (KMS), VPC endpoints.
 
-# Kinesis Data Streams 
+### Producers
 
-The process for kinesis data streams is as follows:
+- **SDK:** PutRecord/PutRecords (batching).
+- **KPL:** High performance, auto-retry, batching.
+- **Agent:** Monitors log files, pre-processes data.
 
-1. Producers (Apps, Client, SDK, Kinesis Agent)
-2. A record is produced with a partition key 
-3. Record is passed to a shard - shards make up a stream, shards can scale to N
-4. The record is passed through the kinesis data streams and now has a sequence number 
-5. The record is consumed by consumers - Lambda, Apps, kinesis data firehose, kinesis data analytics 
+### Consumers
 
-The retention period for recordsin KDS is between 1-365 days. There is the ability to reprocess/replay the data. Once the data is inserted into kinesis, it cant be deleted as the data is immutable. 
+- **SDK:** Polls shards.
+- **KCL:** Java library, checkpointing with DynamoDB.
+- **Lambda:** Configurable batch size.
 
-Data which shares the same partition in the producer will go to the same shard - known as ordering. Users are able to write their own consumers using Kinesis client library or AWS SDK. 
+### Enhanced Fan-Out
 
-## Capacity Modes
+- Each consumer gets 2MB/s per shard, low latency, higher cost.
 
-Kinesis data streams has two different capacity nodes: 
+### Scaling
 
-1. Provisioned mode:
-    - Users can choose the number of shards which are provisioned, can scale manually or using an API. 
-    - Each shard can process 1000records/s as input and 2000records/s as output 
-    - Users pay per shard provisioned per hour 
+- **Shard Splitting:** Increase capacity.
+- **Merging:** Decrease capacity.
+- **Resharding:** Read from parent shards until data is consumed.
 
-2. On demand mode: 
-    - No need to provision or manage capacity 
-    - Default capacity is 4mb/s or 4000records/s
-    - Auto scales based on observed throughput over the last 30 days 
-    - Pay per stream per hour and amount data in/out per GB 
+---
 
-## Kinesis Security 
+## Amazon Data Firehose
 
-To make kinesis data streams secure, we can control access using IAM policies, encryption in flight is using HTTPS endpoints. Encryption at rest is using KMS. Users can monitor API calls using cloudtrail and also enable VPC endpoints to access KDS from within a VPC. 
+Fully managed, near real-time streaming delivery to S3, Redshift, OpenSearch, Splunk.
 
-## Kinesis Producers 
+- Auto-scaling, supports many formats.
+- Data transformations via Lambda.
+- Buffering based on size/time.
 
-Producers can be built/accessed through the Kinesis SDK/Producer library/Agent. 
+### Firehose vs Data Streams
 
-1. Kinesis Producer SDK (PutRecords) - Users can call the API to PutRecord or PutRecords. PutRecords uses batching which increases the throughput with less HTTPS requests. An error of ```ProvisionedThroughputExceeded``` will occur if we go over the limits. If there is low throughput then AWS Lambda can be used. 
+- **Streams:** Real-time, managed by user, data retention.
+- **Firehose:** Fully managed, serverless, no data storage.
 
-2. Kinesis Producer Library KPL - Easy to use and highly configurable, used to build high performance long running producers. Has an auto retry mechanism when records fail and has sync/async API with better performance for async. Compression of records must be enabled by the user, but batching is enabled by default which can increase throughput and decrease cost $$. 
+---
 
-Note: By imposing RecordMaxBufferedTime, users can influence the efficiency of batch processing by introducing some delay. 
+## Amazon Managed Service for Apache Flink (MSAF) / Kinesis Data Analytics
 
-KPL should not be used all the time to stand up producers, especially when there is a processing delay due to the buffered time. 
+- Managed Flink for stream processing.
+- Supports Java, Python, Scala.
+- Integrates with S3, table API for SQL access.
 
-3. Kinesis Agent - Can monitor log files and send them to kinesis data streams, is it a java based agent which is built on top of KPL. The agent can write from multiple directors and write to multiple streams. The data can be pre processed before sending them to streams. File rotation, checkpointing, retry is handled by the agent. 
+---
 
-Duplicates: producer retries can dupe records due to network timeouts. To fix this, embed unique record ids in the data to dedupe on the consumer side. 
+## Amazon MSK (Managed Streaming for Kafka)
 
-Troubleshooting: 
-- SLs can be exceeded when writes are too slow, there are shard level limits on writes and reads. Partition keys would be needed to distribute across shards. When this happens in larger producers then users should batch up files. 
-- 500/503 error: implement a retry mechanism.
-- Connection errors from flink to kinesis: network issue or lack of resource in flink env, vpc misconfiguration. 
-- Throttling errors: Check for hot shards, check for micro spikes in logs. Use exponential backoff/rate limit or try a random partition key to improve the key distribution. 
+- Fully managed Kafka clusters on AWS.
+- Deploys brokers/zookeepers in VPC.
+- Data encrypted at rest (KMS) and in flight (TLS).
+- IAM for access control.
+- Monitoring via CloudWatch, Prometheus, S3 logs.
 
+### MSK Connect
 
-## Kinesis Consumers 
+- Manage Kafka Connect workers for data integration.
+- Auto-scaling, plugin support.
 
-1. Kinesis Consumer SDK - Records being passed to consumers from shards are polled and each shard has a 2mb total throughput. GetRecords API call can return up to 10mb of data, there's a max of 5 GetRecords API calls per shard per second. 
+### MSK Serverless
 
-2. KCL - Java first library which reads records from kinesis produced with KPL. Users can share multiple shards with multiple consumers in one group, there is a checkpointing feature and can leverage dynamodb for coordination and checkpointing. 
+- No capacity management; auto-provisions resources.
+- IAM access control, pay per usage.
 
-Lambda can source records from kinesis data streams. Lambda consumer has a library which can grab records from KPL. Lambda also has a configurable batch size.
+### Kinesis vs MSK
 
-Duplicates: Consumer retries can read the data twice when record processors restart, to solve this make the consumer app idempotent. 
+- **Kinesis:** Shards, 1MB message limit, IAM security.
+- **MSK:** Kafka topics/partitions, configurable limits, IAM security.
 
-Troubleshooting: 
-- Records get skipped with KCL: check for unhandled exceptions on processRecords
-- Records in same shard are processed by more than one processor: May be due to failover on record processor workers, adjusting failover time will fix this
-- Reading is too slow: increase number of shards, code is too slow (test locally)
-- Record processing falling behind: increase retention period and increase resources. 
-- Lambda function cant be invoked: permission issue on role, function is timing out.
-- Throughput exceeded: reshard the stream, reduce size of getrecords requests or use enhanced fan out, use retries or exponential backoff. 
+---
 
-## Kinesis Enhanced fan out 
+## Amazon OpenSearch Service
 
-New feature from 2018 - each consumer gets 2mb/s throughput per shard. The enhanced fan out feature pushed kinesis data to consumers over HTTP/2 and there is a reduced latency. There are multiple consumer apps for the same stream with low latency requirements. However, there is a higher cost than standard consumers with a default limit of 20 consumers per data stream. 
+Managed search and analytics engine (fork of Elasticsearch/Kibana).
 
-## Kinesis - Scaling 
+### Key Concepts
 
-### Adding Shards 
+- **Documents:** JSON, unique ID, type.
+- **Types:** Schema/mapping.
+- **Indices:** Collections of documents, split into shards.
 
-Also called 'shard splitting' can be used to increase the stream capacity and can be used to divide a hot shard which has high throughput. Older shards are closed and will be deleted from the data stream once the data expires. 
+### Storage Types
 
-### Merging Shards 
+1. **Hot Storage:** Fastest, EBS-backed.
+2. **Ultra Warm:** S3 + caching, lower cost.
+3. **Cold Storage:** S3, periodic access.
 
-Merging shards is a process done to decrease the stream capacity and save costs. Can be used to group two shards which have low traffic, old shards are closed and deleted based on when the data expires.
+### Index Management
 
-### Resharding 
+- Automate policies for deletion, read-only, storage migration.
+- Rollups and transformations for summarization and alternate views.
 
-After a reshard, you can read from the child shards. The data which hasnt been read can still be in the parent shard hence why the user shouldnt read data from the child shard, but from the parent shard until all has been read. KCL already has this logic built in even after re sharding takes place. 
+### Cross-Cluster Replication
 
-Kinesis has scaling limitations: resharding can be done in parallel, capacity can be planned in advance and users can only perform one resharding operation at a time. 
+- Replicates indices, mappings, metadata across domains.
 
-# Amazon Data Firehose 
+### Security
 
-Data firehose is a fully managed service which delivers real time streaming data to various destinations. Can load data into redshift, s3, opensearch or splunk. Has auto scaling, and supports many data formats. Can also convert file formats with data transformations happening through lambda. PAYG for the amount of data which has been used. 
+- Resource, identity, IP-based policies, request signing.
+- VPC deployment, Cognito integration for dashboards.
 
-Spark/KCL cannot read data from data firehose. 
+---
 
-## Firehose Buffer Sizing 
+## Amazon Quicksight
 
-Firehose accumulates records in a buffer which is then flushed based on time and size rules which have been set. If the buffer size exceeds 32mb or the buffer time exceeds 2 mins then the buffer is flushed. Firehose can auto increase the buffer size to increase throughput of records. If there is a high throughput then the buffer size will be hit, if there is low throughput then the buffer time will be hit. 
+Fast, easy analytics service for visualizations, reports, and business insights.
 
-## Firehose vs Data Streams 
+### Data Sources
 
-Streams needs someone to manage the service and is real time. Data storage is between 1-365 days, and can be used with lambda to insert data to other services. 
+- Redshift, Aurora, Athena, IoT Analytics, EC2-hosted DBs, S3.
 
-Firehose is fully managed with serverless data transformations with lambda and 'near' real time. Has auto scaling and no data storage. 
+### Use Cases
 
-# Amazon Managed Service for Apache Flink (MSAF) / Kinesis Data Analytics
+- Interactive/ad-hoc exploration, dashboards, KPIs.
 
-Kinesis Data Analytics has java under the hood. Now supports python and scala. Flink is a framework for processing data streams. MSAF integrates Flink with AWS. Users can develop their own flink app from scratch and load data into MSAF via S3. There is a table API for SQL avccess and MSAF is serverless. 
+### SPICE
 
-Flink has connectors which can be custom and also used to connect to other AWS services. Operators allows you to transform one or more data streams into a new data stream. 
+- In-memory engine for fast queries (columnar format).
+- 10GB per user, scalable to thousands of users.
+- 30-minute import timeout.
 
-# Amazon MSK 
+### Quicksight Security
 
-MSK is an alternative to Kinesis. MSK is fully managed kafka on AWS, allows you to create, delet, update and manage clusters. MSK creates and manages kafka brokers, zookeepers. Users can deploy the kafka cluster to a VPC, there is also auto recovery with data stored on EBS. Users can build consumers, producers for data and also create custom config for clusters. 
+- MFA, VPC connectivity, row/column-level security.
+- Private VPC access via Direct Connect.
+- IAM policies for data access.
+- By default, can only access data in the same region.
+- For cross-region: use security groups or VPC peering.
 
-Process: Services > Producers > MSK Cluster > Consumer > Data streamed into another service 
+### User Management
 
-- Configurations: Choose the number of AZs and subnets (public + private) that you need inside the VPC config. 
-- Security: Data is encrypted at rest using KMS and in flight through TLS. IAM access control is needed for authorisation and authentication. This can define who can read/write to which topics. 
-- Monitoring: Cloudwatch metrics is used to monitor MSK, Prometheus is used for open source monitoring and broker logs can also be used (they can be delivered to S3).
+- IAM or Active Directory (Enterprise Edition).
 
-## MSK Connect
+### Quicksight Pricing
 
-Users can manage kafka connect workers on AWS, workers have auto scaling feature. Kafka connect connectors can be deployed to MSK connect as a plugin and is priced at $0.11 an hour. The MSK connect workers pull topic data from the MSK cluster and then write to S3. 
+- Annual subscription: $9/month (Standard), $18/month (Enterprise), $28/month (Quicksight Q).
 
-## MSK Serverless 
-
-There is a serverless version of MSK. Users are able to run apache kafka on MSK without having to manage capacity. MSK auto provisions resources and scale compute, storage. Users just define topics and partitions with IAM access control for all clusters acting as security. Pricing is $558 per cluster per hour - $0.10 for every GB in and $0.05 for every GB out. 
-
-## Kinesis vs MSK 
-
-KDS has a 1mb messga elimit and has data streams with shards, TLS in flight encryption and KMS at rest. Security is through IAM poliies. 
-
-MSK has a 1mb default and but can be configured for a higher limit, has kafka topics with partitions instead of shards. Can add partitions to topics with TLS in flight and KMS at rest.
-
-# Amazon Opensearch Service
-
+---
