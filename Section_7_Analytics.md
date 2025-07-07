@@ -279,3 +279,146 @@ Serverless app lifecycle: creating > created > starting > started > stopping > s
 Note: When setting up an EMR cluster for spark - make sure to add 10% more capacity than requested by the job. 
 
 EMR serverless uses similar security protocols to EMR. S3 encryption at rest, TLS in transit between EMR nodes. 
+
+# Kinesis Data Streams 
+
+The process for kinesis data streams is as follows:
+
+1. Producers (Apps, Client, SDK, Kinesis Agent)
+2. A record is produced with a partition key 
+3. Record is passed to a shard - shards make up a stream, shards can scale to N
+4. The record is passed through the kinesis data streams and now has a sequence number 
+5. The record is consumed by consumers - Lambda, Apps, kinesis data firehose, kinesis data analytics 
+
+The retention period for recordsin KDS is between 1-365 days. There is the ability to reprocess/replay the data. Once the data is inserted into kinesis, it cant be deleted as the data is immutable. 
+
+Data which shares the same partition in the producer will go to the same shard - known as ordering. Users are able to write their own consumers using Kinesis client library or AWS SDK. 
+
+## Capacity Modes
+
+Kinesis data streams has two different capacity nodes: 
+
+1. Provisioned mode:
+    - Users can choose the number of shards which are provisioned, can scale manually or using an API. 
+    - Each shard can process 1000records/s as input and 2000records/s as output 
+    - Users pay per shard provisioned per hour 
+
+2. On demand mode: 
+    - No need to provision or manage capacity 
+    - Default capacity is 4mb/s or 4000records/s
+    - Auto scales based on observed throughput over the last 30 days 
+    - Pay per stream per hour and amount data in/out per GB 
+
+## Kinesis Security 
+
+To make kinesis data streams secure, we can control access using IAM policies, encryption in flight is using HTTPS endpoints. Encryption at rest is using KMS. Users can monitor API calls using cloudtrail and also enable VPC endpoints to access KDS from within a VPC. 
+
+## Kinesis Producers 
+
+Producers can be built/accessed through the Kinesis SDK/Producer library/Agent. 
+
+1. Kinesis Producer SDK (PutRecords) - Users can call the API to PutRecord or PutRecords. PutRecords uses batching which increases the throughput with less HTTPS requests. An error of ```ProvisionedThroughputExceeded``` will occur if we go over the limits. If there is low throughput then AWS Lambda can be used. 
+
+2. Kinesis Producer Library KPL - Easy to use and highly configurable, used to build high performance long running producers. Has an auto retry mechanism when records fail and has sync/async API with better performance for async. Compression of records must be enabled by the user, but batching is enabled by default which can increase throughput and decrease cost $$. 
+
+Note: By imposing RecordMaxBufferedTime, users can influence the efficiency of batch processing by introducing some delay. 
+
+KPL should not be used all the time to stand up producers, especially when there is a processing delay due to the buffered time. 
+
+3. Kinesis Agent - Can monitor log files and send them to kinesis data streams, is it a java based agent which is built on top of KPL. The agent can write from multiple directors and write to multiple streams. The data can be pre processed before sending them to streams. File rotation, checkpointing, retry is handled by the agent. 
+
+Duplicates: producer retries can dupe records due to network timeouts. To fix this, embed unique record ids in the data to dedupe on the consumer side. 
+
+Troubleshooting: 
+- SLs can be exceeded when writes are too slow, there are shard level limits on writes and reads. Partition keys would be needed to distribute across shards. When this happens in larger producers then users should batch up files. 
+- 500/503 error: implement a retry mechanism.
+- Connection errors from flink to kinesis: network issue or lack of resource in flink env, vpc misconfiguration. 
+- Throttling errors: Check for hot shards, check for micro spikes in logs. Use exponential backoff/rate limit or try a random partition key to improve the key distribution. 
+
+
+## Kinesis Consumers 
+
+1. Kinesis Consumer SDK - Records being passed to consumers from shards are polled and each shard has a 2mb total throughput. GetRecords API call can return up to 10mb of data, there's a max of 5 GetRecords API calls per shard per second. 
+
+2. KCL - Java first library which reads records from kinesis produced with KPL. Users can share multiple shards with multiple consumers in one group, there is a checkpointing feature and can leverage dynamodb for coordination and checkpointing. 
+
+Lambda can source records from kinesis data streams. Lambda consumer has a library which can grab records from KPL. Lambda also has a configurable batch size.
+
+Duplicates: Consumer retries can read the data twice when record processors restart, to solve this make the consumer app idempotent. 
+
+Troubleshooting: 
+- Records get skipped with KCL: check for unhandled exceptions on processRecords
+- Records in same shard are processed by more than one processor: May be due to failover on record processor workers, adjusting failover time will fix this
+- Reading is too slow: increase number of shards, code is too slow (test locally)
+- Record processing falling behind: increase retention period and increase resources. 
+- Lambda function cant be invoked: permission issue on role, function is timing out.
+- Throughput exceeded: reshard the stream, reduce size of getrecords requests or use enhanced fan out, use retries or exponential backoff. 
+
+## Kinesis Enhanced fan out 
+
+New feature from 2018 - each consumer gets 2mb/s throughput per shard. The enhanced fan out feature pushed kinesis data to consumers over HTTP/2 and there is a reduced latency. There are multiple consumer apps for the same stream with low latency requirements. However, there is a higher cost than standard consumers with a default limit of 20 consumers per data stream. 
+
+## Kinesis - Scaling 
+
+### Adding Shards 
+
+Also called 'shard splitting' can be used to increase the stream capacity and can be used to divide a hot shard which has high throughput. Older shards are closed and will be deleted from the data stream once the data expires. 
+
+### Merging Shards 
+
+Merging shards is a process done to decrease the stream capacity and save costs. Can be used to group two shards which have low traffic, old shards are closed and deleted based on when the data expires.
+
+### Resharding 
+
+After a reshard, you can read from the child shards. The data which hasnt been read can still be in the parent shard hence why the user shouldnt read data from the child shard, but from the parent shard until all has been read. KCL already has this logic built in even after re sharding takes place. 
+
+Kinesis has scaling limitations: resharding can be done in parallel, capacity can be planned in advance and users can only perform one resharding operation at a time. 
+
+# Amazon Data Firehose 
+
+Data firehose is a fully managed service which delivers real time streaming data to various destinations. Can load data into redshift, s3, opensearch or splunk. Has auto scaling, and supports many data formats. Can also convert file formats with data transformations happening through lambda. PAYG for the amount of data which has been used. 
+
+Spark/KCL cannot read data from data firehose. 
+
+## Firehose Buffer Sizing 
+
+Firehose accumulates records in a buffer which is then flushed based on time and size rules which have been set. If the buffer size exceeds 32mb or the buffer time exceeds 2 mins then the buffer is flushed. Firehose can auto increase the buffer size to increase throughput of records. If there is a high throughput then the buffer size will be hit, if there is low throughput then the buffer time will be hit. 
+
+## Firehose vs Data Streams 
+
+Streams needs someone to manage the service and is real time. Data storage is between 1-365 days, and can be used with lambda to insert data to other services. 
+
+Firehose is fully managed with serverless data transformations with lambda and 'near' real time. Has auto scaling and no data storage. 
+
+# Amazon Managed Service for Apache Flink (MSAF) / Kinesis Data Analytics
+
+Kinesis Data Analytics has java under the hood. Now supports python and scala. Flink is a framework for processing data streams. MSAF integrates Flink with AWS. Users can develop their own flink app from scratch and load data into MSAF via S3. There is a table API for SQL avccess and MSAF is serverless. 
+
+Flink has connectors which can be custom and also used to connect to other AWS services. Operators allows you to transform one or more data streams into a new data stream. 
+
+# Amazon MSK 
+
+MSK is an alternative to Kinesis. MSK is fully managed kafka on AWS, allows you to create, delet, update and manage clusters. MSK creates and manages kafka brokers, zookeepers. Users can deploy the kafka cluster to a VPC, there is also auto recovery with data stored on EBS. Users can build consumers, producers for data and also create custom config for clusters. 
+
+Process: Services > Producers > MSK Cluster > Consumer > Data streamed into another service 
+
+- Configurations: Choose the number of AZs and subnets (public + private) that you need inside the VPC config. 
+- Security: Data is encrypted at rest using KMS and in flight through TLS. IAM access control is needed for authorisation and authentication. This can define who can read/write to which topics. 
+- Monitoring: Cloudwatch metrics is used to monitor MSK, Prometheus is used for open source monitoring and broker logs can also be used (they can be delivered to S3).
+
+## MSK Connect
+
+Users can manage kafka connect workers on AWS, workers have auto scaling feature. Kafka connect connectors can be deployed to MSK connect as a plugin and is priced at $0.11 an hour. The MSK connect workers pull topic data from the MSK cluster and then write to S3. 
+
+## MSK Serverless 
+
+There is a serverless version of MSK. Users are able to run apache kafka on MSK without having to manage capacity. MSK auto provisions resources and scale compute, storage. Users just define topics and partitions with IAM access control for all clusters acting as security. Pricing is $558 per cluster per hour - $0.10 for every GB in and $0.05 for every GB out. 
+
+## Kinesis vs MSK 
+
+KDS has a 1mb messga elimit and has data streams with shards, TLS in flight encryption and KMS at rest. Security is through IAM poliies. 
+
+MSK has a 1mb default and but can be configured for a higher limit, has kafka topics with partitions instead of shards. Can add partitions to topics with TLS in flight and KMS at rest.
+
+# Amazon Opensearch Service
+

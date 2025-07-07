@@ -1,78 +1,126 @@
-# EC2
+# AWS Compute Services
 
-An Amazon EC2 (Elastic Compute Cloud) instance is a virtual server in the cloud that provides resizable compute capacity for running applications.
+---
 
-## Use of EC2 in Data 
+## EC2 (Elastic Compute Cloud)
 
-1. On demand, spot and reserved instances:
-    a. Spot - can tolerate losses and are low cost which can be used for ML checkpointing 
-    b. Reserved - used for longer running clusters or databases, users can get discounts when reserving their instances
-    c. On demand - these instances are used when we dont know when we are going to use or may need compute instantly. 
+An Amazon EC2 instance is a virtual server in the cloud that provides resizable compute capacity for running applications.
 
-2. Auto scaling - Can be used as leverage for EMR, auto scaling groups are automated for dynamodb, auto scaling groups 
+### Use of EC2 in Data Engineering
 
-Note: EC2 is behind EMR so we need to pay attention to master nodesl compute nodes which contain data and task nodes which do not contain data. 
+1. **Instance Types:**
+    - **Spot:** Low cost, can tolerate interruptions (e.g., ML checkpointing).
+    - **Reserved:** For long-running clusters or databases; discounts for reservations.
+    - **On Demand:** For unpredictable or instant compute needs.
 
-### Graviton based instances
+2. **Auto Scaling:**  
+   Used for EMR, DynamoDB, and auto scaling groups to manage compute resources automatically.
 
-Graviton is amazons own family of processors which powers several EC2 types including general purpose, compute/memory/storage optimised and accelerated computing. The graviton based instances can be used as an option for many data engineering services and offers the best price performance. e.g MSK, RDS, EMR, Lamda, Fargate
+> **Note:**  
+> EC2 is the underlying infrastructure for EMR. Pay attention to:
+> - **Master nodes:** Manage the cluster.
+> - **Core nodes:** Store data and run tasks.
+> - **Task nodes:** Run tasks but do not store data.
 
-# AWS Lambda 
+### Graviton-Based Instances
 
-Lambda is a way to run 'snippets of code in the cloud' - it is serverless and scales continually often used to process data as it moves around. Lambda is often used as a glue between services.
+- Amazon's own family of processors powering several EC2 types (general purpose, compute/memory/storage optimized, accelerated computing).
+- Offers best price/performance for many data engineering services (e.g., MSK, RDS, EMR, Lambda, Fargate).
 
-Why not just run the code on a server? 
+---
 
-- Server management is tedious 
-- Servers can be cheap but scaling them is expensive 
-- When running lambda, you only pay for what you use 
-- By using lambda and serverless, its easier to develop between frontend and backend.
+## AWS Lambda
 
-Main uses of lambda in data eng: real time file processing, real time stream processing, ETL, CRON replacement, process AWS events. Lambda also supports a wide range of languages. 
+Lambda lets you run code snippets in the cloud—serverless and auto-scaling. Commonly used to process data as it moves between services.
 
-Examples: 
-1. Working example: S3 > Lambda > elasticsearch/opensearch service
-2. Lambda with data pipelines: can be scheduled to see when files are coming into S3, based on pre conditions lambda can then kick off a data pipeline after the files or data has been received into S3. 
-3. Lambda and Redshift: The best practice for loading data into redshift is using COPY INTO command, lambda can be used to respond to new data ingestion into redshift but is stateless so cannot keep track, hence needing dynamodb to keep track of what has been loaded. Lambda can then batch new data and load that into redshift. 
-4. Lambda and Kinesis: Lambda code receives an event with a batch of stream records, users can specify the batch size and too large a batch can cause lambda to timeout. Lambda will retry until it succeeds or the data expires, solution is to add more shards to ensure larger batches are processed
+### Why Use Lambda Instead of Servers?
 
-## Lambda - File system mounting 
+- No server management required.
+- Scaling is automatic and cost-effective.
+- Pay only for what you use.
+- Easier integration between frontend and backend.
 
-- Lambda functions can access EFS file systems if they are running inside a VPC. Lambda can be mounted to EFS file systems during initialisation and must leverage EFS access points. Lambda can max out connection limits if too many EFS mounts are connected. 
-- Storage options: 
-    a. Ephemeral storage/tmp - a file system which is the fastest option but data is shared only in one invocation/session. 
-    b. Lambda layers - 5 layers per function can hold up to 250mb each, IAM permissions are used to share data and data can be shared across invocations. 
-    c. S3 - Elastic, object storage type, governed by IAM and is fast but not as fast as tmp/layers, data is shared across invocations. 
-    4. EFS - Elastic, storage/throughput/data_transfer is not included in lambda pricing. Permissions are through NFS/IAM and data is shared across invocations.
+### Main Uses of Lambda in Data Engineering
 
-# AWS SAM 
+- Real-time file processing
+- Real-time stream processing
+- ETL
+- CRON replacement
+- Processing AWS events
 
-SAM is the serverless application model. A framework to develop and deploy serverless apps where all code is in YAML, users can build or design complex cloudformations from simple SAM YAML files. 
+Lambda supports a wide range of languages.
 
-SAM supports anything from cloudformation and users can use codedeploy to deploy lambdas. SAM can also be run locally to test AWS services such as Lamnbda, API Gateway, DynamoDB. 
+### Examples
 
-## Recipe 
+1. **S3 → Lambda → Elasticsearch/OpenSearch Service**
+2. **Lambda with Data Pipelines:**  
+   Scheduled to detect new files in S3; triggers pipelines after data arrives.
+3. **Lambda and Redshift:**  
+   - Best practice: Use `COPY INTO` command for loading data.
+   - Lambda responds to new data ingestion but is stateless, so use DynamoDB to track loaded data.
+   - Lambda batches new data and loads into Redshift.
+4. **Lambda and Kinesis:**  
+   - Lambda receives a batch of stream records.
+   - Batch size is configurable; too large can cause timeouts.
+   - Lambda retries until success or data expires.
+   - Solution: Add more shards for larger batch processing.
 
-SAM has recipes which users can write to indicate what serverless app needs to be deployed. The recipe has a transform header which indicates the SAM template and each app is then written and deployed ```sam deploy```
+---
 
-Can quickly sync local changes to AWS Lambda using SAM accelerate ```sam sync --watch```
+## Lambda - File System Mounting
 
-Process: User builds the serverless app locally with SAM YAML template + app code > transformed into cloudformation template YAML + app code > zip + upload to s3 bucket > create and execute change set in cloudformation to deploy serverless application stack. 
+- Lambda functions can access EFS file systems if running inside a VPC.
+- Mount EFS during initialization using EFS access points.
+- Too many EFS mounts can max out connection limits.
 
-## SAM Accelerate 
+**Storage Options:**
+- **Ephemeral storage (`/tmp`):** Fastest, but data is only available within a single invocation/session.
+- **Lambda Layers:** Up to 5 layers per function (250 MB each); data can be shared across invocations using IAM permissions.
+- **S3:** Elastic object storage, governed by IAM; data shared across invocations (not as fast as `/tmp` or layers).
+- **EFS:** Elastic, not included in Lambda pricing; permissions via NFS/IAM; data shared across invocations.
 
-Deploying as fast as possible to reduce latency while deploying to AWS. ```sam sync``` synchronises the project which has been declared in SAM templates to AWS. Sam sync enabled code changes to AWS without updating infra.
+---
 
-- ```sam sync --code``` sync code changes without updating infra 
-- ```sam sync --code --resource <resource_name>``` sync code for specific resource 
-- ```sam sync --watch``` monitor for file changes and auto sync when changes are detected inside SAM template
+## AWS SAM (Serverless Application Model)
 
-# AWS Batch 
+A framework to develop and deploy serverless apps using YAML. Simplifies building complex CloudFormation stacks.
 
-Run batch jobs as docker images. With dynamic provisioning of EC2 and spot instances when needed for underlying compute. Batch is fully serverless and you pay for the underlying EC2 instances which are used. Jobs can be scheduled using cloudwatch events and orchestrated using step functions. 
+- Supports all CloudFormation resources.
+- Integrates with CodeDeploy for Lambda deployments.
+- Can run locally to test AWS services (Lambda, API Gateway, DynamoDB).
 
-## AWS Batch vs Glue 
+### Recipe
 
-- Glue: runs on apache spark code with a focus on ETL, has a data catalog and users dont need to worry about configuring or managing resources. 
+- Write a SAM template (YAML) describing the serverless app.
+- Deploy with `sam deploy`.
+- Use `sam sync --watch` to quickly sync local changes to AWS Lambda.
 
-- Batch: For any computing jobs whether ETL/or not. Resources are created in the AWS account and managed by batch, batch is said to be better than glue for non ETL related work. 
+**Process:**
+1. Build app locally with SAM YAML template + app code.
+2. Transform into CloudFormation template + app code.
+3. Zip and upload to S3.
+4. Create and execute change set in CloudFormation to deploy the stack.
+
+### SAM Accelerate
+
+- Deploy code changes as fast as possible to AWS.
+- `sam sync` synchronizes declared resources in SAM templates.
+- `sam sync --code` syncs code changes only.
+- `sam sync --code --resource <resource_name>` syncs code for a specific resource.
+- `sam sync --watch` monitors for file changes and auto-syncs.
+
+---
+
+## AWS Batch
+
+Run batch jobs as Docker images with dynamic provisioning of EC2 and spot instances. Fully serverless; pay for underlying EC2 instances used.
+
+- Jobs can be scheduled with CloudWatch Events.
+- Orchestrate jobs using Step Functions.
+
+### AWS Batch vs Glue
+
+- **Glue:** Runs Apache Spark code for ETL, includes a data catalog, and is fully managed.
+- **Batch:** For any compute jobs (ETL or not); resources are created and managed in your AWS account. Better for non-ETL workloads.
+
+---

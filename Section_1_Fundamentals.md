@@ -1,138 +1,212 @@
 # AWS Data Engineering Fundamentals
 
-## Types of data 
+---
 
-- Structured: data which is organised in a defined manner or schema, found in relational databases. Easily queriable, organised into rows and columns and has a consistent structure e.g. csvs 
+## Types of Data
 
-- Semi structured: Data which is not organised like structured data but has some level of structure in the form of tags and other patterns. Might be tagged, or categorised. e.g. XML/JSON files or log files. 
+- **Structured:**  
+  Organised in a defined manner or schema (e.g., relational databases).  
+  - Easily queryable, organised into rows and columns, consistent structure.  
+  - Examples: CSV files, SQL tables.
 
-- Unstructured: Data that doesnt have a predefined schema or structure. Cannot be queried easily, comes in various formats e.g. videos and images. 
+- **Semi-Structured:**  
+  Not fully structured but has some organisation (e.g., tags, key-value pairs).  
+  - Examples: XML, JSON, log files.
 
-## Properties of data
+- **Unstructured:**  
+  No predefined schema or structure.  
+  - Not easily queried, comes in various formats.  
+  - Examples: Videos, images, free text.
 
-- Volume: Refers to the amount or size of data which organisations are dealing with at any given time. Can range from GB to PB and comes with storage, processing and analytical challenges. 
+---
 
-- Velocity: Refers to the speed at which new data is generated, collected and processed. High velocity data requires real time or near real time processing capabilities. Rapid ingestion is critical. 
+## Properties of Data
 
-- Variety: Refers to the different types, structures and sources of data. Data can come in various formats and from multiple sources. 
+- **Volume:**  
+  The amount or size of data organisations handle (GB to PB).  
+  - Challenges: Storage, processing, analytics.
 
-## Data warehouses/Data Lakes/Lakehouse
+- **Velocity:**  
+  The speed at which new data is generated, collected, and processed.  
+  - High-velocity data requires real-time or near real-time processing.
 
-- Data warehouse: A centralised repo which has data from different soruces stored in a structured format. Designed for complex queries, has an ETL process and has a snowflake/star schema. Data is optimised for read heavy operations. e.g. Redshift, bigquery
+- **Variety:**  
+  The different types, structures, and sources of data.  
+  - Data can come in multiple formats and from various sources.
 
-```Data sources > Data warehouse > Data mart```
+---
 
-- Data Lake: A storage repo which holds raw data in structured, semi structured and unstructured formats. Can store large amounts of raw data without a pre defined schema. Data is loaded without pre processing and can support real-time, stream processing. Follows an ELT process. e.g. S3 can be used as a data lake 
+## Data Warehouses, Data Lakes, and Lakehouse
 
-```S3 > Glue > Athena```
+- **Data Warehouse:**  
+  Centralised repository for structured data from different sources.  
+  - Designed for complex queries, uses ETL, often with star/snowflake schema.  
+  - Optimised for read-heavy operations.  
+  - Examples: Amazon Redshift, Google BigQuery.
 
-- Data lakes are more agile/scalable than warehouses as they can accept different varities of raw data without a pre defined schema. DWHs are more expensive because of optimisation required for complex queries. The costs can rise in a data lake when processing large amounts of data. 
+  ```
+  Data sources → Data warehouse → Data mart
+  ```
 
-- Data lakes are more often used for advanced analytics/ML and DWHs more for BI
+- **Data Lake:**  
+  Storage repository for raw data (structured, semi-structured, unstructured).  
+  - No predefined schema, supports real-time/stream processing, uses ELT.  
+  - Example: S3 as a data lake.
 
-- Data Lakehouse: Organisations can also use a combination of both, can ingest raw data into a data lake and then process and refine the data into a DWH. They are typically build on top of distributed architecture and can benefits from delta lake, ACID transactions. e.g. AWS Lake formation (with s3 and redshift spectrum)
+  ```
+  S3 → Glue → Athena
+  ```
 
-## Data Mesh 
+- **Comparison:**  
+  - Data lakes are more agile/scalable, accept various raw data types.
+  - Data warehouses are optimised for complex queries but can be more expensive.
+  - Data lakes are often used for advanced analytics/ML; warehouses for BI.
 
-- Data mesh is about governance and organisation of data. Individual teams own 'data products' within a given domain. The data products can serve use cases. Data products can be grouped or serve individually as 'data domains' which is called 'domain based data management'.
+- **Data Lakehouse:**  
+  Combines features of data lakes and warehouses.  
+  - Ingests raw data into a lake, processes/refines into a warehouse.  
+  - Built on distributed architecture, supports ACID transactions.  
+  - Example: AWS Lake Formation (with S3 and Redshift Spectrum).
 
-- Data mesh also brings about self service tooling and infrastructure. Data lakes, DWH can be part of a data mesh but data mesh is more about the data management side and not the specific tools/technologies.
+---
 
-## Managing and orchestrating ETL pipelines
+## Data Mesh
 
-Definition: Extract, Transform, Load
- 
-ETL is a PROCESS used to move data from source to a data warehouse
+- **Definition:**  
+  Governance and organisation of data where individual teams own "data products" within a domain.
+- **Features:**  
+  - Data products serve use cases and can be grouped as "data domains".
+  - Emphasises self-service tooling and infrastructure.
+  - Focuses on data management, not specific tools/technologies.
 
-- Extract: this is where you collect the raw data either from APIs, files, other data repos. Can be done in batches or in real time.
+---
 
-- Transform: extract the format suitable into a target data warehouse, data cleansing, enrichment, format changes, aggregations and handling missing data occurs here. 
+## Managing and Orchestrating ETL Pipelines
 
-- Load: move the transformed data into the target DWH or data repo. Can be done in batches or through streaming as data becomes available. We have to make sure of data integrity throughout this phase. 
+**ETL:** Extract, Transform, Load  
+A process to move data from source to data warehouse.
 
-Managment of pipelines: Has to be automated through glue, and using orchestration services such as eventbridge, MWAA, step functions, lambda and glue workflows. 
+- **Extract:**  
+  Collect raw data from APIs, files, or other repositories (batch or real-time).
+- **Transform:**  
+  Cleanse, enrich, reformat, aggregate, and handle missing data.
+- **Load:**  
+  Move transformed data into the target warehouse or repository (batch or streaming).
 
-## Data sources and data formats 
+**Pipeline Management:**  
+Automate using AWS Glue, EventBridge, MWAA, Step Functions, Lambda, and Glue Workflows.
 
-- Sources: 
-    - JDBC - java based connectivity which is platform and language independent 
-    - ODBC - open database connectivity which is platform dependent and language independent. 
-    - Raw logs 
-    - APIs 
-    - Streams 
+---
 
-- Formats: 
-    - CSV - text based format, comma separated. For small to medium datasets, where data needs to be human readable and editable. Importing, exporting data from databses or spreadsheets. 
-    - JSON - lightweight, text based format which represents structured or semi structured data based on key-value pairs. Can be used for settings, config and when a flexible schema is needed. 
-    - AVRO - binary formnat data which stores both data and schema. Can allow files to be processed later without needing the systems context. Used for big data and real time processing, for data transport between systems. e.g. kafka, spark, flink and hadoop
-    - Parquet - columnar storage format optimised for analytics. Used for analysing large datasets and when I/O operations need to be optimised. e.g. redshift spectrum, apache spark, hive. 
+## Data Sources and Data Formats
 
-## Review of data modelling/lineage/schema evolution
+- **Sources:**  
+  - JDBC: Java-based, platform/language independent.
+  - ODBC: Platform dependent, language independent.
+  - Raw logs, APIs, Streams.
 
-- Star schema: Has fact tables, dimensions and primary/foreign keys. ERDs are drawn to show case a star schema. 
+- **Formats:**  
+  - **CSV:** Text-based, comma-separated, human-readable/editable.
+  - **JSON:** Lightweight, key-value pairs, flexible schema.
+  - **AVRO:** Binary, stores data and schema, used for big data/real-time (Kafka, Spark, Flink, Hadoop).
+  - **Parquet:** Columnar, optimised for analytics and I/O (Redshift Spectrum, Spark, Hive).
 
-- Data lineage: this is a visual representation which traces the flow/transformation of data from source to reporting. It helps tracking errors back to source, ensures compliance and provides an understanding of how data is moved, transformed and consumed in systems.
+---
 
-e.g. we can capture data lineage using a spline agent/API (spark) which is attached to glue (for data transformations) and dump the lineage data in neptune via a lambda. Can then query neptune for the lineage using external tools. 
+## Data Modelling, Lineage, and Schema Evolution
 
-- Schema evolution: the ability to adapt the schema of a dataset over time without disrupting existing processes or systems. AWS glue schema registry can manage different versions of schemas over time and ensure backward compatibility with old schema versions. 
+- **Star Schema:**  
+  Fact tables, dimensions, primary/foreign keys. ERDs illustrate relationships.
 
-## Database performance optimisation techniques 
+- **Data Lineage:**  
+  Visual representation tracing data flow/transformation from source to reporting.  
+  - Helps track errors, ensures compliance, and clarifies data movement.
 
-1. Indexing - build indexes to avoid full table scans, query only the indexes. 
+  *Example:*  
+  Capture lineage using a Spline agent (Spark) attached to Glue, store in Neptune via Lambda, and query with external tools.
 
-2. Paritioning - partition the data to avoid scanning all the rows, enables parallel processing if the data is partitioned logically. 
+- **Schema Evolution:**  
+  Ability to adapt dataset schema over time without disrupting processes.  
+  - AWS Glue Schema Registry manages schema versions and backward compatibility.
 
-3. Compression - speeding up data transfer, compression can reduce I/O reads. GZIP/LZOP/BZIP2/ZTSD are redshift compression examples, columnar compression is also an option in parquet format. 
+---
 
-## Data Sampling 
+## Database Performance Optimisation Techniques
 
-1. Random sampling - everything has an equal chance 
+1. **Indexing:**  
+   Build indexes to avoid full table scans.
+2. **Partitioning:**  
+   Partition data for parallel processing and efficient scans.
+3. **Compression:**  
+   Reduces I/O, speeds up data transfer (e.g., GZIP, LZOP, BZIP2, ZSTD, columnar compression in Parquet).
 
-2. Statified sampling - divides the population into sub groups (strata). There is a random sample within each strata and ensures representation of each subgroup
+---
 
-others: systematic, clustering, convenience, judgmental. 
+## Data Sampling
 
-## Data skew 
+1. **Random Sampling:**  
+   Every item has an equal chance.
+2. **Stratified Sampling:**  
+   Divide population into subgroups (strata), sample within each for representation.
+3. **Other Types:**  
+   Systematic, clustering, convenience, judgmental.
 
-Refers to the unequal distribution or imbalance of data across various nodes or partitions in distributed computing systems. 
+---
 
-- Even partitioning doesn't work if the traffic is uneven
-- This can be caused by: 
-    - When data is increasing over time
-    - No adequate partitioning strategy 
-    - Temporal skew: occurs when data is partitioned based on time or date, and some time periods have more data than others
+## Data Skew
 
-## Data validation and profiling 
+Unequal distribution or imbalance of data across nodes/partitions in distributed systems.
 
-1. Completeness: ensures all required data is present and no data is missing. Checking for null values, missing values.
-2. Consistency: is the data in a consistent format across datasets. Cross field validation is when you can compare across different sources and periods. 
-3. Accuracy: ensuring the data is correct and reliable, reconciliation with trusted sources and validation checks. Invalid data can lead to poor insights. 
+- Even partitioning fails if traffic is uneven.
+- Causes:
+  - Data growth over time.
+  - Inadequate partitioning strategy.
+  - **Temporal skew:** Partitioning by time/date, some periods have more data.
+
+---
+
+## Data Validation and Profiling
+
+1. **Completeness:**  
+   All required data is present (check for null/missing values).
+2. **Consistency:**  
+   Data format is consistent across datasets (cross-field validation).
+3. **Accuracy:**  
+   Data is correct/reliable (reconcile with trusted sources, validation checks).
+
+---
 
 ## SQL Joins
 
-1. INNER JOIN - results only returned for the intersection of two tables, where there is common data across the two tables e.g. customer id common across table a and table b 
+1. **INNER JOIN:**  
+   Returns intersection of two tables (matching data only).
+2. **LEFT OUTER JOIN / LEFT JOIN:**  
+   All data from left table, matching data from right; unmatched right is NULL.
+3. **RIGHT OUTER JOIN / RIGHT JOIN:**  
+   All data from right table, matching data from left; unmatched left is NULL.
+4. **FULL OUTER JOIN / FULL JOIN:**  
+   All data from both tables, regardless of match.
+5. **CROSS JOIN:**  
+   Every possible combination between two tables.
 
-2. LEFT OUTER JOIN/LEFT JOIN  - will get results for all the data in the left table and the data which is matching in the right table from the left table, if no data is matching then we get NULL values. 
+---
 
-3. RIGHT OUTER JOIN/RIGHT JOIN - will get results for all the data in the right table and the data which is matching in the left table from the right table, if no data is matching then we get NULL values. 
+## SQL Regular Expressions
 
-4. FULL OUTER JOIN/FULL JOIN - will get results of everything from both tables regardless of match.
+- `LIKE` is used for pattern matching/searching in SQL.
+- `~` Regular expression operator
+- `~*` Case-insensitive regex
+- `!~*` Not match, case-insensitive
+- `^` Match at start of string
+- `$` Match at end of string (e.g., `boo$` matches 'boo')
+- `|` Alternation (e.g., `sit|sat` matches 'sit' or 'sat')
+- `[a-z]` Any lowercase letter
+- `[a-z]{4}` Any four-letter lowercase word
 
-5. CROSS OUTER JOIN/CROSS JOIN - will give every possible combination of data between the two tables.
+**Example:**
+```sql
+SELECT * FROM table1 WHERE name ~* '(fire|ice)'
+```
+Selects rows where `name` starts with 'fire' or 'ice' (case-insensitive).
 
-## SQL Regular expressions
-
-```LIKE``` is used for pattern matching or searching in SQL
-
-- ```~``` Regular expression operator
-- ```~*``` to make the operator case insensitive
-- ```!~*``` would mean to not match the expression and make it case insensitive
-- ```^``` match a pattern at the start of the string 
-- ```$``` match a patter at the end of the string - ```boo$``` would look for 'boo'
-- ```|``` matches any alternate characters e.g. ```sit|sat``` would match both 'sit and sat'
-- ```[a-z]``` would match any lowercase letter 
-- ```[a-z]{4}``` would match any four letter lowercase word
-
-e.g. ```SELECT * FROM table1 where name ~*'(fire|ice)'```
-will select any rows where the name starts with fire or ice (case insensitive)
+---
